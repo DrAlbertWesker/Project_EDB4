@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "communicator/communicator.h"
 
+//test comment for git useage
 static void cbInputHandler(InputKeyMask_t);
 
 static bool gRunning = true;
