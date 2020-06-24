@@ -32,7 +32,14 @@ typedef struct sessionFlags {
 
 int communicator_connect(Server_e server);
 int communicator_createSesson();
+void send_heartbeat();
+uint8_t* calcHashMacCR(uint8_t* pResponse, uint16_t nonce);
+uint16_t calcHashMacHeartbeat();
+uint32_t getNoace();
 uint16_t generateCRC (uint8_t* pBuf, uint32_t len);
-
+void write_msblsb (uint8_t* pBuf, uint16_t val);
+void write_msblsb32bit(uint8_t* pBuf, uint32_t val);
+uint16_t read_msblsb(uint8_t* pBuf);
+uint32_t read_msblsb32bit(uint8_t* pBuf);
 
 #endif /* SRC_COMMUNICATOR_COMMUNICATOR_H_ */

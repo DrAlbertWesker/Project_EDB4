@@ -15,9 +15,15 @@
 #define GAME_SERVER_IP_ADDRESS						("52.57.105.0")
 #define DEFAULT_SERVER_PORT							(7)
 #define GAME_SERVER_PORT							(44444)
+#define SERVER_CHALLENGE							0x04
+#define SESSION_ESTABLISHED							0x10
+
 
 static void cbNetworkReceive(uint8_t* pBuffer, uint32_t len);
-uint16_t sessionID;
+static uint16_t sessionId;
+uint16_t sequenceNumber_tx;
+uint16_t sequenceNumber_rx;
+uint16_t challengeResponse;
 
 int communicator_connect(Server_e server) {
 
@@ -37,10 +43,10 @@ int communicator_connect(Server_e server) {
 		break;
 
 	case GAME_SERVER:
-			if (!network_connect(GAME_SERVER_IP_ADDRESS	, GAME_SERVER_PORT)) {
-				return -4;
-			}
-			break;
+		if (!network_connect(GAME_SERVER_IP_ADDRESS	, GAME_SERVER_PORT)) {
+			return -4;
+		}
+		break;
 
 	default:
 		return -3;
@@ -51,19 +57,15 @@ int communicator_connect(Server_e server) {
 
 int communicator_createSesson() {
 
+	sessionId = 0;
 	uint8_t packet[9] = {0};
 	sessionFlags_t* pHeader = (sessionFlags_t*) &packet[0];
-	pHeader ->version = 0;
+	pHeader->version = 0;
 	pHeader->sessionRequest = 1;
-	//Todo: Set state wating for challenge
-	sessionID = 0;
 	network_send(packet, 9);
-	while (!sessionID) {
+	while (sessionId == 0) {
 		Sleep(10);
 	}
-
-	// ... Wait until session created
-
 	return 0;
 }
 
@@ -73,28 +75,61 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 		printf("%02X ",pBuffer[i]);
 	}
 	printf("\n");
-	if (pBuffer[0] == 0x04) { //Todo: nur wenn state waring for shallenge
-		uint32_t nonce = (pBuffer[7] << 24) | (pBuffer[8] << 16) | (pBuffer[9] << 8) | (pBuffer[10]); //Gegen Funktion ersetzen
+	if (pBuffer[0] == SERVER_CHALLENGE) {
+		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
 		printf("\nNonce = %d\n", nonce);
-		uint8_t hash[12] = { 0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01 };
+		uint8_t hash[12] = { 0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01 }; // hash_calc_start
 		memcpy(hash, &pBuffer[7], 4);
 		uint16_t hash1 = generateCRC(hash, 12);
-		hash[0] = hash1 >> 8;
-		hash[1] = hash1 & 0xFF;
+		write_msblsb(&hash[0], hash1);
 		uint16_t hash2 = generateCRC(hash, 2);
-		printf("%d\n", hash2);
+		challengeResponse = hash2;
+		printf("CR: %d\n", hash2);
 		uint8_t response[13] = { 0 };
 		response[0] = 0x08;
 		response[2] = 4;
-		response[9] = hash2 >> 8; 			//funktion für paketierung erstellen
-		response[10] = hash2 & 0xFF;
+		write_msblsb(&response[9], hash2); // hash_calc_end
 		network_send(response, 13);
 	}
 
-	if (pBuffer[0] == 0x10) {
-		sessionID = (pBuffer[3] << 8) | pBuffer[4];
-		printf("SessionID: %d\n", sessionID);
+	if (pBuffer[0] == SESSION_ESTABLISHED) {
+		sessionId = (pBuffer[3] << 8) | pBuffer[4];
+		printf("SessionId: %d\n", sessionId);
 	}
+}
+
+
+uint8_t* calcHashMacCR(uint8_t *pResponse, uint16_t nonce) {
+
+		//TODO
+		return NULL;
+}
+
+
+void sendHeartbeat() {
+	uint8_t buffer[9] = { 0 };			// buffer = HEARTBEAT, length (0 --> no PL), sessionId, sequenceNumber, hmac
+	buffer[0] = 1;
+	write_msblsb(&buffer[3], sessionId);
+	write_msblsb(&buffer[5], ++sequenceNumber_tx);
+	uint16_t hmac = calcHashMacHeartbeat();
+	write_msblsb(&buffer[7], hmac);
+	network_send(&buffer[0], 9);
+}
+
+uint16_t calcHashMacHeartbeat() {
+
+	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H |
+	write_msblsb(&hash[0], challengeResponse);
+	hash[10] = 1;
+	hash[11] = 0;
+	hash[12] = 0;
+	write_msblsb(&hash[13], sessionId);
+	write_msblsb(&hash[15], sequenceNumber_tx);
+	uint16_t hash1 = generateCRC(hash, 17);
+	uint8_t hash1_arr[2] = { 0 };
+	write_msblsb(&hash1_arr[0], hash1);
+	uint16_t hash2 = generateCRC(hash1_arr, 2);
+	return hash2;
 }
 
 uint16_t generateCRC (uint8_t* pBuf, uint32_t len) {
@@ -115,3 +150,24 @@ uint16_t generateCRC (uint8_t* pBuf, uint32_t len) {
 	return crc;
 }
 
+void write_msblsb (uint8_t* pBuf, uint16_t val) {
+	pBuf[0] = (val & 0xFF00) >> 8;
+	pBuf[1] = (val & 0xFF);
+}
+
+void write_msblsb32bit(uint8_t* pBuf, uint32_t val) {
+	pBuf[0] = (val & 0xFF000000) >> 24;
+	pBuf[1] = (val & 0xFF0000) >> 16;
+	pBuf[2] = (val & 0xFF00) >> 8;
+	pBuf[3] = (val & 0xFF);
+}
+
+uint16_t read_msblsb(uint8_t* pBuf) {
+	uint16_t result = (pBuf[0] << 8) | (pBuf[1]);
+	return result;
+}
+
+uint32_t read_msblsb32bit(uint8_t* pBuf) {
+	uint32_t result = (pBuf[0] << 24) | (pBuf[1] << 16) | (pBuf[2] << 8) | (pBuf[3] << 0);
+	return result;
+}
