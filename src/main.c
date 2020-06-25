@@ -20,7 +20,11 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	printf("Session created!\n");
+	PlayerColor_t color;
+	color.red = 255;
+	color.green = 255;
+	color.blue = 255;
+	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x1234, "NiMa");
 
 	uint32_t time_now_s = time(NULL);
 	uint32_t time_heartbeat = time_now_s;
@@ -30,7 +34,7 @@ int main(int argc, char** argv) {
 
 		time_now_s = time(NULL);
 		if ((time_now_s - time_heartbeat) > 10) {
-			sendHeartbeat();
+			sessionSendHeartbeat();
 			printf("Sending heartbeat\n");
 			time_heartbeat = time_now_s;
 		}

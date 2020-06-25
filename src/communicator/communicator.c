@@ -16,14 +16,15 @@
 #define DEFAULT_SERVER_PORT							(7)
 #define GAME_SERVER_PORT							(44444)
 #define SERVER_CHALLENGE							0x04
-#define SESSION_ESTABLISHED							0x10
+#define SESSION_ESTABLISHED_						0x10
+#define SESSION_HEADER_LENGTH						9
 
 
 static void cbNetworkReceive(uint8_t* pBuffer, uint32_t len);
-static uint16_t sessionId;
-uint16_t sequenceNumber_tx;
-uint16_t sequenceNumber_rx;
-uint16_t challengeResponse;
+static uint16_t gSessionId;
+uint16_t gSequenceNumber_tx;
+uint16_t gSequenceNumber_rx;
+uint16_t gChallengeResponse;
 
 int communicator_connect(Server_e server) {
 
@@ -56,17 +57,20 @@ int communicator_connect(Server_e server) {
 }
 
 int communicator_createSesson() {
-
-	sessionId = 0;
-	uint8_t packet[9] = {0};
-	sessionFlags_t* pHeader = (sessionFlags_t*) &packet[0];
-	pHeader->version = 0;
-	pHeader->sessionRequest = 1;
-	network_send(packet, 9);
-	while (sessionId == 0) {
+	SendPacket_t* pCreateSession = sessionCreatePacket(0, SESSION_REQUEST, 0, 0, 0, 0);
+	network_send(pCreateSession->pBuf, pCreateSession->size);
+	sessionDestroyPacket(pCreateSession);
+	while (gSessionId == 0) {
 		Sleep(10);
 	}
 	return 0;
+}
+
+SendPacket_t* communicator_challengeRespond(uint32_t nonce) {
+	gChallengeResponse = calcCR(nonce);
+	SendPacket_t* pPacket = sessionCreatePacket(0, CHALLENGE_RESPOND, 4, 0, 0, 0);
+	write_msblsb(&pPacket->pBuf[9], gChallengeResponse);
+	return pPacket;
 }
 
 void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
@@ -77,54 +81,122 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 	printf("\n");
 	if (pBuffer[0] == SERVER_CHALLENGE) {
 		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
-		printf("\nNonce = %d\n", nonce);
-		uint8_t hash[12] = { 0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01 }; // hash_calc_start
-		memcpy(hash, &pBuffer[7], 4);
-		uint16_t hash1 = generateCRC(hash, 12);
-		write_msblsb(&hash[0], hash1);
-		uint16_t hash2 = generateCRC(hash, 2);
-		challengeResponse = hash2;
-		printf("CR: %d\n", hash2);
-		uint8_t response[13] = { 0 };
-		response[0] = 0x08;
-		response[2] = 4;
-		write_msblsb(&response[9], hash2); // hash_calc_end
-		network_send(response, 13);
+		SendPacket_t* pPacket = communicator_challengeRespond(nonce);
+		network_send(pPacket->pBuf, pPacket->size);
+		sessionDestroyPacket(pPacket);
 	}
 
-	if (pBuffer[0] == SESSION_ESTABLISHED) {
-		sessionId = (pBuffer[3] << 8) | pBuffer[4];
-		printf("SessionId: %d\n", sessionId);
+	if (pBuffer[0] == SESSION_ESTABLISHED_) {
+		gSessionId = (pBuffer[3] << 8) | pBuffer[4];
+		printf("Session created --> SessionId: %d\n\n", gSessionId);
 	}
 }
 
 
-uint8_t* calcHashMacCR(uint8_t *pResponse, uint16_t nonce) {
-
-		//TODO
-		return NULL;
+void sessionSendHeartbeat() {
+	gSequenceNumber_tx++;
+	uint16_t hmac = calcHashMac(HEARTBEAT);
+	SendPacket_t* pHeartBeat = sessionCreatePacket(0, HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
+	network_send(pHeartBeat->pBuf, pHeartBeat->size);
+	sessionDestroyPacket(pHeartBeat);
 }
 
-
-void sendHeartbeat() {
-	uint8_t buffer[9] = { 0 };			// buffer = HEARTBEAT, length (0 --> no PL), sessionId, sequenceNumber, hmac
-	buffer[0] = 1;
-	write_msblsb(&buffer[3], sessionId);
-	write_msblsb(&buffer[5], ++sequenceNumber_tx);
-	uint16_t hmac = calcHashMacHeartbeat();
-	write_msblsb(&buffer[7], hmac);
-	network_send(&buffer[0], 9);
+void sessionInvalidate() {
+	gSequenceNumber_tx++;
+	uint16_t hmac = calcHashMac(SESSION_INVALIDATE);
+	SendPacket_t* pKillSession = sessionCreatePacket(0, SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
+	network_send(pKillSession->pBuf, pKillSession->size);
 }
 
-uint16_t calcHashMacHeartbeat() {
+SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac) {
 
-	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H |
-	write_msblsb(&hash[0], challengeResponse);
-	hash[10] = 1;
+	SendPacket_t* pPacket = malloc(sizeof(SendPacket_t));
+	uint8_t* pBuffer = malloc(SESSION_HEADER_LENGTH);
+	SessionHeader_t* pHeader = (SessionHeader_t*) pBuffer;
+	pBuffer[0] = 0;
+
+	switch (commandType) {
+	case SESSION_REQUEST:;
+		pHeader->sessionRequest = 1;
+		write_msblsb(&pBuffer[1], length);
+		write_msblsb(&pBuffer[3], sessionId);
+		write_msblsb(&pBuffer[5], seqNumber);
+		write_msblsb(&pBuffer[7], hmac);
+		pPacket->pBuf = (uint8_t*) pBuffer;
+		pPacket->size = SESSION_HEADER_LENGTH;
+		return pPacket;
+		break;
+
+	case CHALLENGE_RESPOND:;
+		pHeader->challangeResponse = 1;
+		write_msblsb(&pBuffer[1], length);
+		write_msblsb(&pBuffer[3], sessionId);
+		write_msblsb(&pBuffer[5], seqNumber);
+		write_msblsb(&pBuffer[7], hmac);
+		pPacket->pBuf = (uint8_t*) pBuffer;
+		pPacket->size = SESSION_HEADER_LENGTH + length;
+		return pPacket;
+		break;
+
+	case HEARTBEAT:
+		pHeader->heartbeat = 1;
+		write_msblsb(&pBuffer[1], length);
+		write_msblsb(&pBuffer[3], sessionId);
+		write_msblsb(&pBuffer[5], seqNumber);
+		write_msblsb(&pBuffer[7], hmac);
+		pPacket->pBuf = (uint8_t*) pBuffer;
+		pPacket->size = SESSION_HEADER_LENGTH + length;
+		return pPacket;
+		break;
+
+	case SESSION_INVALIDATE:
+		pHeader->sessionInvalidate = 1;
+		write_msblsb(&pBuffer[1], length);
+		write_msblsb(&pBuffer[3], sessionId);
+		write_msblsb(&pBuffer[5], seqNumber);
+		write_msblsb(&pBuffer[7], hmac);
+		pPacket->pBuf = (uint8_t*) pBuffer;
+		pPacket->size = SESSION_HEADER_LENGTH + length;
+		return pPacket;
+		break;
+
+	default:
+		return -404;
+		break;
+	}
+
+}
+
+void sessionDestroyPacket(SendPacket_t* pPacket) {
+	free(pPacket->pBuf);
+	free(pPacket);
+}
+
+uint16_t calcCR(uint32_t nonce) {
+	uint8_t hash[12] = { 0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01 }; // hash_calc_start
+	write_msblsb32bit(&hash[0], nonce);
+	uint16_t hash1 = generateCRC(hash, 12);
+	write_msblsb(&hash[0], hash1);
+	uint16_t hash2 = generateCRC(hash, 2);
+	gChallengeResponse = hash2;
+	printf("CR: %d\n", hash2);
+	return gChallengeResponse;
+}
+
+uint16_t calcHashMac(uint8_t command) {
+
+	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H | PL)
+	write_msblsb(&hash[0], gChallengeResponse);
+	if (command == HEARTBEAT) {
+		hash[10] = 1;
+	} else if (command = SESSION_INVALIDATE) {
+		hash[10] = 32;
+	}
+
 	hash[11] = 0;
 	hash[12] = 0;
-	write_msblsb(&hash[13], sessionId);
-	write_msblsb(&hash[15], sequenceNumber_tx);
+	write_msblsb(&hash[13], gSessionId);
+	write_msblsb(&hash[15], gSequenceNumber_tx);
 	uint16_t hash1 = generateCRC(hash, 17);
 	uint8_t hash1_arr[2] = { 0 };
 	write_msblsb(&hash1_arr[0], hash1);
