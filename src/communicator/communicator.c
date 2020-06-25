@@ -73,6 +73,19 @@ SendPacket_t* communicator_challengeRespond(uint32_t nonce) {
 	return pPacket;
 }
 
+void sendApplicationPacket(uint8_t* pPacket, uint32_t size) {
+	gSequenceNumber_tx++;
+	SendPacket_t* pAppPacket = malloc(sizeof(SendPacket_t));
+	pAppPacket->pBuf = pPacket;
+	pAppPacket->size = size;
+	uint16_t hmac = calcHashMac(pAppPacket->pBuf, pAppPacket->size, APP_MSG);
+	pAppPacket = sessionCreatePacket(0, APP_MSG, size, gSessionId, gSequenceNumber_tx, hmac);
+	memcpy(&pAppPacket->pBuf[7], pPacket, size);
+	network_send(pAppPacket->pBuf, pAppPacket->size);
+
+
+}
+
 void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 	printf("Packet received with length = %d.\r\n", len);
 	for (int i = 0; i < len; i++) {
@@ -92,26 +105,28 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 	}
 }
 
-
 void sessionSendHeartbeat() {
 	gSequenceNumber_tx++;
-	uint16_t hmac = calcHashMac(HEARTBEAT);
-	SendPacket_t* pHeartBeat = sessionCreatePacket(0, HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
+	SendPacket_t* pHeartBeat = malloc(sizeof(SendPacket_t));
+	pHeartBeat->pBuf = malloc(0);
+	uint16_t hmac = calcHashMac(pHeartBeat->pBuf, 0, HEARTBEAT);
+	pHeartBeat = sessionCreatePacket(0, HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
 	network_send(pHeartBeat->pBuf, pHeartBeat->size);
 	sessionDestroyPacket(pHeartBeat);
 }
 
 void sessionInvalidate() {
 	gSequenceNumber_tx++;
-	uint16_t hmac = calcHashMac(SESSION_INVALIDATE);
-	SendPacket_t* pKillSession = sessionCreatePacket(0, SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
+	SendPacket_t* pKillSession = malloc(sizeof(SendPacket_t));
+	uint16_t hmac = calcHashMac(pKillSession->pBuf, 0, SESSION_INVALIDATE);
+	pKillSession = sessionCreatePacket(0, SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
 	network_send(pKillSession->pBuf, pKillSession->size);
 }
 
 SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac) {
 
 	SendPacket_t* pPacket = malloc(sizeof(SendPacket_t));
-	uint8_t* pBuffer = malloc(SESSION_HEADER_LENGTH);
+	uint8_t* pBuffer = malloc(SESSION_HEADER_LENGTH + length);
 	SessionHeader_t* pHeader = (SessionHeader_t*) pBuffer;
 	pBuffer[0] = 0;
 
@@ -160,8 +175,18 @@ SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t
 		return pPacket;
 		break;
 
+	case APP_MSG:
+		pBuffer[0] = 0;
+		write_msblsb(&pBuffer[1], length);
+		write_msblsb(&pBuffer[3], sessionId);
+		write_msblsb(&pBuffer[5], seqNumber);
+		write_msblsb(&pBuffer[7 + length], hmac);
+		pPacket->pBuf = (uint8_t*) pBuffer;
+		pPacket->size = SESSION_HEADER_LENGTH + length;
+		return pPacket;
+
 	default:
-		return -404;
+		return (SendPacket_t*) NULL;
 		break;
 	}
 
@@ -183,24 +208,36 @@ uint16_t calcCR(uint32_t nonce) {
 	return gChallengeResponse;
 }
 
-uint16_t calcHashMac(uint8_t command) {
-
-	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H | PL)
+uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand) {
+	//HMAC = HASH(HASH(CR | S | H | PL)
+	uint8_t hashSize = 17;
+	uint8_t* pHash = malloc(hashSize + len);
+	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H )
 	write_msblsb(&hash[0], gChallengeResponse);
-	if (command == HEARTBEAT) {
-		hash[10] = 1;
-	} else if (command = SESSION_INVALIDATE) {
-		hash[10] = 32;
-	}
 
-	hash[11] = 0;
-	hash[12] = 0;
+	switch (sessionCommand) {
+		case HEARTBEAT:
+			hash[10] = 1;
+			break;
+		case SESSION_INVALIDATE:
+			hash[10] = 32;
+			break;
+		case APP_MSG:
+			hash[10] = 0;
+			break;
+		default:
+			break;
+	}
+	write_msblsb(&hash[11], len);
 	write_msblsb(&hash[13], gSessionId);
 	write_msblsb(&hash[15], gSequenceNumber_tx);
-	uint16_t hash1 = generateCRC(hash, 17);
+	memcpy(&pHash[0], &hash[0], 17);
+	memcpy(&pHash[17], &pBuf[0], len);
+	uint16_t hash1 = generateCRC(pHash, hashSize + len);
 	uint8_t hash1_arr[2] = { 0 };
 	write_msblsb(&hash1_arr[0], hash1);
 	uint16_t hash2 = generateCRC(hash1_arr, 2);
+	free(pHash);
 	return hash2;
 }
 

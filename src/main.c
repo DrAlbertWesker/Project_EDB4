@@ -20,15 +20,11 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	PlayerColor_t color;
-	color.red = 255;
-	color.green = 255;
-	color.blue = 255;
-	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x1234, "NiMa");
+	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x80, "NiMa");
+	sendApplicationPacket(pPacket->pBuf, pPacket->size);
 
 	uint32_t time_now_s = time(NULL);
 	uint32_t time_heartbeat = time_now_s;
-
 
 	while (gRunning) {
 
@@ -39,7 +35,12 @@ int main(int argc, char** argv) {
 			time_heartbeat = time_now_s;
 		}
 		Sleep(10);
+
+
+
 	}
+
+
 
 	printf("Exiting...");
 	return 0;

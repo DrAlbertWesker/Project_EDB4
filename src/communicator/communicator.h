@@ -21,7 +21,8 @@ typedef enum {
 	SESSION_REQUEST,
 	CHALLENGE_RESPOND,
 	SESSION_INVALIDATE,
-	HEARTBEAT
+	HEARTBEAT,
+	APP_MSG
 }SessionCommand_e;
 
 typedef struct SendPacket{
@@ -46,14 +47,15 @@ int communicator_connect(Server_e server);
 
 SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
 
-int communicator_createSesson();
-SendPacket_t* communicator_challengeRespond(uint32_t nonce);
-void sessionSendHeartbeat();
-void sessionDestroyPacket(SendPacket_t* pPacket);
-uint16_t calcCR(uint32_t nonce);
-uint16_t calcHashMac(uint8_t command);
 uint32_t getNoace();
+void sessionSendHeartbeat();
+int communicator_createSesson();
+uint16_t calcCR(uint32_t nonce);
+void sessionDestroyPacket(SendPacket_t* pPacket);
 uint16_t generateCRC (uint8_t* pBuf, uint32_t len);
+SendPacket_t* communicator_challengeRespond(uint32_t nonce);
+void sendApplicationPacket(uint8_t* pPacket, uint32_t size);
+uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand);
 
 void write_msblsb (uint8_t* pBuf, uint16_t val);
 void write_msblsb32bit(uint8_t* pBuf, uint32_t val);
