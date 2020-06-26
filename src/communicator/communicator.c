@@ -76,14 +76,16 @@ SendPacket_t* communicator_challengeRespond(uint32_t nonce) {
 void sendApplicationPacket(uint8_t* pPacket, uint32_t size) {
 	gSequenceNumber_tx++;
 	SendPacket_t* pAppPacket = malloc(sizeof(SendPacket_t));
+	if (pAppPacket == NULL) {
+		printf("No memory available!\n");
+	}
 	pAppPacket->pBuf = pPacket;
 	pAppPacket->size = size;
 	uint16_t hmac = calcHashMac(pAppPacket->pBuf, pAppPacket->size, APP_MSG);
 	pAppPacket = sessionCreatePacket(0, APP_MSG, size, gSessionId, gSequenceNumber_tx, hmac);
+
 	memcpy(&pAppPacket->pBuf[7], pPacket, size);
 	network_send(pAppPacket->pBuf, pAppPacket->size);
-
-
 }
 
 void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
@@ -108,6 +110,9 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 void sessionSendHeartbeat() {
 	gSequenceNumber_tx++;
 	SendPacket_t* pHeartBeat = malloc(sizeof(SendPacket_t));
+	if (pHeartBeat == NULL) {
+		printf("No memory available!\n");
+	}
 	pHeartBeat->pBuf = malloc(0);
 	uint16_t hmac = calcHashMac(pHeartBeat->pBuf, 0, HEARTBEAT);
 	pHeartBeat = sessionCreatePacket(0, HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
@@ -118,6 +123,9 @@ void sessionSendHeartbeat() {
 void sessionInvalidate() {
 	gSequenceNumber_tx++;
 	SendPacket_t* pKillSession = malloc(sizeof(SendPacket_t));
+	if (pKillSession == NULL) {
+		printf("No memory available!\n");
+	}
 	uint16_t hmac = calcHashMac(pKillSession->pBuf, 0, SESSION_INVALIDATE);
 	pKillSession = sessionCreatePacket(0, SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
 	network_send(pKillSession->pBuf, pKillSession->size);
@@ -126,7 +134,13 @@ void sessionInvalidate() {
 SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac) {
 
 	SendPacket_t* pPacket = malloc(sizeof(SendPacket_t));
+	if (pPacket == NULL) {
+		return NULL;
+	}
 	uint8_t* pBuffer = malloc(SESSION_HEADER_LENGTH + length);
+	if (pBuffer == NULL) {
+		return NULL;
+	}
 	SessionHeader_t* pHeader = (SessionHeader_t*) pBuffer;
 	pBuffer[0] = 0;
 
@@ -212,6 +226,9 @@ uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand) {
 	//HMAC = HASH(HASH(CR | S | H | PL)
 	uint8_t hashSize = 17;
 	uint8_t* pHash = malloc(hashSize + len);
+	if (pHash == NULL) {
+		return NULL;
+	}
 	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H )
 	write_msblsb(&hash[0], gChallengeResponse);
 

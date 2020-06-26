@@ -48,6 +48,7 @@ int communicator_connect(Server_e server);
 SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
 
 uint32_t getNoace();
+void sessionInvalidate();
 void sessionSendHeartbeat();
 int communicator_createSesson();
 uint16_t calcCR(uint32_t nonce);

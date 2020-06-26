@@ -9,13 +9,14 @@
 #define SRC_PROTOCOL_PROTOCOL_H_
 #include <inttypes.h>
 #include <stdbool.h>
+#include "../communicator/communicator.h"
 
 #define HEADER_LENGTH 7
 
 
 typedef enum {
 	REGISTER_PLAYER = 0x01,
-	PLAYER_CONTROL  = 0x0A,
+	PLAYER_CONTROL  = 0x10,
 	DROP_FOOD		= 0x14,
 	REQST_PLYR_INFO	= 0x1E,
 	CHAT_MSG		= 0x28
@@ -49,12 +50,12 @@ typedef struct {
 	uint8_t blue;
 } PlayerColor_t;
 
-//SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername);
-//SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left);
+SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername);
+SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left);
 //SendPacket_t* createPlayerDropFoodPacket(void);
 //SendPacket_t* createPlayerChatPacket(char* message);
 void sendHeartbeat();
 
-//void destroySendPacket(SendPacket_t* pPacket);
+
 
 #endif /* SRC_PROTOCOL_PROTOCOL_H_ */
