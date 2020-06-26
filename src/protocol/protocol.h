@@ -19,7 +19,7 @@ typedef enum {
 	PLAYER_CONTROL  = 0x10,
 	DROP_FOOD		= 0x14,
 	REQST_PLYR_INFO	= 0x1E,
-	CHAT_MSG		= 0x28
+	CHAT_MSG		= 0x40
 } CommandId_e;
 
 typedef enum {
@@ -52,8 +52,8 @@ typedef struct {
 
 SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername);
 SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left);
+SendPacket_t* createPlayerChatPacket(char* message);
 //SendPacket_t* createPlayerDropFoodPacket(void);
-//SendPacket_t* createPlayerChatPacket(char* message);
 void sendHeartbeat();
 
 

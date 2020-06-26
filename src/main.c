@@ -12,6 +12,7 @@ static bool gUp = false;
 static bool gRight = false;
 static bool gDown = false;
 static bool gLeft = false;
+static bool gMovement = false;
 
 int main(int argc, char** argv) {
 	setbuf(stdout, NULL);
@@ -25,7 +26,7 @@ int main(int argc, char** argv) {
 	}
 
 	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x80, "NiMa");
-	sendApplicationPacket(pPacket->pBuf, pPacket->size);
+ 	sendApplicationPacket(pPacket->pBuf, pPacket->size);
 	sessionDestroyPacket(pPacket);
 
 	uint32_t time_now_s = time(NULL);
@@ -37,6 +38,9 @@ int main(int argc, char** argv) {
 		if ((time_now_s - time_heartbeat) > 10) {
 			sessionSendHeartbeat();
 			printf("Sending heartbeat\n");
+			SendPacket_t* pMessage = createPlayerChatPacket("This is the Beat of a heart!");
+			sendApplicationPacket(pMessage->pBuf, pMessage->size);
+			sessionDestroyPacket(pMessage);
 			time_heartbeat = time_now_s;
 		}
 		Sleep(10);
@@ -55,18 +59,19 @@ static void cbInputHandler(InputKeyMask_t m) {
 	gRight = (m & INPUT_KEY_MASK_KEY_RIGHT);
 	gDown = (m & INPUT_KEY_MASK_KEY_DOWN);
 	gLeft = (m & INPUT_KEY_MASK_KEY_LEFT);
-	if (!(((gUp == true) && (gDown == true))
-			|| ((gLeft == true) && (gRight == true)))) {
-		SendPacket_t* pControlPacket = createPlayerControlPacket(gUp, gLeft,
-				gRight, gDown);
+	if (!(((gUp == true) && (gDown == true)) || ((gLeft == true) && (gRight == true)))) {
+		SendPacket_t* pControlPacket = createPlayerControlPacket(gUp, gLeft, gRight, gDown);
 		uint8_t testVal = pControlPacket->pBuf[7];
 		printf("Control Command: %d\n", testVal);
 		sendApplicationPacket(pControlPacket->pBuf, pControlPacket->size);
 		sessionDestroyPacket(pControlPacket);
-	}
+		printf("Still moving!!!\n");
 
+		Sleep(200);
+	}
 
 	if (m == INPUT_KEY_MASK_KEY_DOWN + INPUT_KEY_MASK_KEY_SPACE) {
-	 	sessionInvalidate();
+		sessionInvalidate();
 	}
+
 }

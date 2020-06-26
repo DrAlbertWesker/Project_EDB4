@@ -13,7 +13,6 @@
 static uint16_t gTransactionId = 0;
 
 SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername) {
-
 	gTransactionId = transactionId;
 	uint16_t packetLength = strlen(playername) + HEADER_LENGTH +3;
 	SendPacket_t* pPlayerReg = malloc(sizeof(SendPacket_t));
@@ -24,9 +23,7 @@ SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playe
 	if (pBuffer == NULL) {
 		return NULL;
 	}
-	PacketHeader_t* pHeader = (PacketHeader_t*) pBuffer;
 	pBuffer[0] = 0;
-	pHeader->Request = 1;
 	pBuffer[0] = 1;
 	write_msblsb(&pBuffer[1], (packetLength - HEADER_LENGTH));
 	write_msblsb(&pBuffer[3], REGISTER_PLAYER);
@@ -37,7 +34,6 @@ SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playe
 	pPlayerReg->pBuf = &pBuffer[0];
 	pPlayerReg->size = packetLength;
 	return pPlayerReg;
-
 }
 
 SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left) {
@@ -70,4 +66,27 @@ SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool lef
 	pPacket->size = (HEADERSIZE + PL);
 	return pPacket;
 
+}
+
+SendPacket_t* createPlayerChatPacket(char* message) {
+	uint16_t stringLength = strlen(message);
+	uint16_t packetLength = stringLength + HEADER_LENGTH + 3;
+	SendPacket_t* pMessage = malloc(sizeof(SendPacket_t));
+	if (pMessage == NULL) {
+		return NULL;
+	}
+	uint8_t* pBuffer = malloc(sizeof(packetLength));
+	if (pBuffer == NULL) {
+		return NULL;
+	}
+	//PacketHeader_t* pHeader = (PacketHeader_t*) pBuffer;
+	//pHeader->Request  = 0;
+	pBuffer[0] = 1;
+	write_msblsb(&pBuffer[1], (packetLength - HEADER_LENGTH));
+	write_msblsb(&pBuffer[3], CHAT_MSG);
+	write_msblsb(&pBuffer[5], gTransactionId);
+	memcpy (&pBuffer[7], message, (stringLength));
+	pMessage->pBuf = &pBuffer[0];
+	pMessage->size = packetLength;
+	return pMessage;
 }
