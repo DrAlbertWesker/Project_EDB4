@@ -11,15 +11,16 @@
 #include "../input/input_service.h"
 
 static uint16_t gTransactionId = 0;
+static uint8_t gHeadersize = 7;
 
-SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername) {
+SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername, PlayerColor_t* color) {
 	gTransactionId = transactionId;
-	uint16_t packetLength = strlen(playername) + HEADER_LENGTH +3;
+	uint16_t packetLength = HEADER_LENGTH + 3 + 6 + strlen(playername);
 	SendPacket_t* pPlayerReg = malloc(sizeof(SendPacket_t));
 	if (pPlayerReg == NULL) {
 		return NULL;
 	}
-	uint8_t* pBuffer = malloc(sizeof(packetLength));
+	uint8_t* pBuffer = malloc(packetLength);
 	if (pBuffer == NULL) {
 		return NULL;
 	}
@@ -31,15 +32,20 @@ SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playe
 	pBuffer[7] = PlAYER_NAME;
 	write_msblsb(&pBuffer[8], strlen(playername));
 	memcpy(&pBuffer[10], playername, strlen(playername));
+	pBuffer[10 + strlen(playername)] = PLAYER_COLOR;
+	uint16_t colorDataLen = 3;
+	write_msblsb(&pBuffer[11 + strlen(playername)], colorDataLen);
+	pBuffer[13 + strlen(playername)] = color->red;
+	pBuffer[14 + strlen(playername)] = color->green;
+	pBuffer[15 + strlen(playername)] = color->blue;
 	pPlayerReg->pBuf = &pBuffer[0];
 	pPlayerReg->size = packetLength;
 	return pPlayerReg;
 }
 
 SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left) {
-	uint8_t HEADERSIZE = 7;
 	uint8_t PL = 1;
-	uint8_t* pCtrlPacket = malloc(HEADERSIZE + PL);
+	uint8_t* pCtrlPacket = malloc(gHeadersize + PL);
 	if (pCtrlPacket == NULL) {
 		return NULL;
 	}
@@ -63,14 +69,13 @@ SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool lef
 	}
 	pCtrlPacket[7] = ctrlCmd;
 	pPacket->pBuf = pCtrlPacket;
-	pPacket->size = (HEADERSIZE + PL);
+	pPacket->size = (gHeadersize + PL);
 	return pPacket;
-
 }
 
 SendPacket_t* createPlayerChatPacket(char* message) {
 	uint16_t stringLength = strlen(message);
-	uint16_t packetLength = stringLength + HEADER_LENGTH + 3;
+	uint16_t packetLength = stringLength + HEADER_LENGTH;
 	SendPacket_t* pMessage = malloc(sizeof(SendPacket_t));
 	if (pMessage == NULL) {
 		return NULL;
@@ -79,8 +84,6 @@ SendPacket_t* createPlayerChatPacket(char* message) {
 	if (pBuffer == NULL) {
 		return NULL;
 	}
-	//PacketHeader_t* pHeader = (PacketHeader_t*) pBuffer;
-	//pHeader->Request  = 0;
 	pBuffer[0] = 1;
 	write_msblsb(&pBuffer[1], (packetLength - HEADER_LENGTH));
 	write_msblsb(&pBuffer[3], CHAT_MSG);
@@ -90,3 +93,23 @@ SendPacket_t* createPlayerChatPacket(char* message) {
 	pMessage->size = packetLength;
 	return pMessage;
 }
+
+
+SendPacket_t* createPlayerDropFoodPacket(void) {
+	uint8_t PL = 1;
+	uint8_t* pDropFoodPacket = malloc(gHeadersize + PL);
+	if (pDropFoodPacket == NULL) {
+		return NULL;
+	}
+	SendPacket_t* pPacket = malloc(sizeof(SendPacket_t));
+	pDropFoodPacket[0] = 1;
+	write_msblsb(&pDropFoodPacket[1], 1);
+	write_msblsb(&pDropFoodPacket[3], DROP_FOOD);
+	write_msblsb(&pDropFoodPacket[5], gTransactionId);
+	pDropFoodPacket[7] = 0;
+	pPacket->pBuf = pDropFoodPacket;
+	pPacket->size = (gHeadersize + PL);
+	return pPacket;
+
+}
+

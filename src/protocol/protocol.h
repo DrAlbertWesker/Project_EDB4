@@ -17,8 +17,8 @@
 typedef enum {
 	REGISTER_PLAYER = 0x01,
 	PLAYER_CONTROL  = 0x10,
-	DROP_FOOD		= 0x14,
-	REQST_PLYR_INFO	= 0x1E,
+	DROP_FOOD		= 0x20,
+	REQST_PLYR_INFO	= 0x30,
 	CHAT_MSG		= 0x40
 } CommandId_e;
 
@@ -50,12 +50,10 @@ typedef struct {
 	uint8_t blue;
 } PlayerColor_t;
 
-SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername);
+SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername, PlayerColor_t* color);
 SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left);
 SendPacket_t* createPlayerChatPacket(char* message);
-//SendPacket_t* createPlayerDropFoodPacket(void);
-void sendHeartbeat();
-
+SendPacket_t* createPlayerDropFoodPacket(void);
 
 
 #endif /* SRC_PROTOCOL_PROTOCOL_H_ */

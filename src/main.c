@@ -12,38 +12,29 @@ static bool gUp = false;
 static bool gRight = false;
 static bool gDown = false;
 static bool gLeft = false;
-static bool gMovement = false;
 
 int main(int argc, char** argv) {
 	setbuf(stdout, NULL);
 
 	input_service_init(cbInputHandler);
-
 	communicator_connect(GAME_SERVER);
 	if (communicator_createSesson() != 0) {
 		printf("Failed to create session!\n");
 		return -1;
 	}
-
-	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x80, "NiMa");
- 	sendApplicationPacket(pPacket->pBuf, pPacket->size);
-	sessionDestroyPacket(pPacket);
-
+	communicatorRegisterPlayer();
 	uint32_t time_now_s = time(NULL);
 	uint32_t time_heartbeat = time_now_s;
-
-	while (gRunning) {
-
+ 	while (gRunning) {
 		time_now_s = time(NULL);
 		if ((time_now_s - time_heartbeat) > 10) {
-			sessionSendHeartbeat();
-			printf("Sending heartbeat\n");
-			SendPacket_t* pMessage = createPlayerChatPacket("This is the Beat of a heart!");
+			communicatorSendHeartbeat();
+			SendPacket_t* pMessage = createPlayerChatPacket("Heartbeat");
 			sendApplicationPacket(pMessage->pBuf, pMessage->size);
 			sessionDestroyPacket(pMessage);
 			time_heartbeat = time_now_s;
 		}
-		Sleep(10);
+ 		Sleep(10);
 	}
 	printf("Exiting...");
 	return 0;
@@ -72,6 +63,10 @@ static void cbInputHandler(InputKeyMask_t m) {
 
 	if (m == INPUT_KEY_MASK_KEY_DOWN + INPUT_KEY_MASK_KEY_SPACE) {
 		sessionInvalidate();
+	}
+	if (m == INPUT_KEY_MASK_KEY_SPACE) {
+		SendPacket_t* pDropFood = createPlayerDropFoodPacket();
+		sendApplicationPacket(pDropFood->pBuf, pDropFood->size);
 	}
 
 }

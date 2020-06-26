@@ -18,12 +18,21 @@ typedef enum {
 } Server_e;
 
 typedef enum {
-	SESSION_REQUEST,
-	CHALLENGE_RESPOND,
-	SESSION_INVALIDATE,
-	HEARTBEAT,
-	APP_MSG
+	CMD_SESSION_REQUEST,
+	CMD_CHALLENGE_RESPOND,
+	CMD_SESSION_INVALIDATE,
+	CMD_HEARTBEAT,
+	CMD_APP_MSG
 }SessionCommand_e;
+
+typedef enum {
+	HDR_SESSION_HEARTBEAT = 1,
+	HDR_SESSION_REQUEST = 2,
+	HDR_SESSION_CHALLENGE = 4,
+	HDR_CHALLENGE_RESPOND = 8,
+	HDR_SESSION_RESULT = 16,
+	HDR_SESSION_INVALIDATE = 32,
+}SessionHeader_e;
 
 typedef struct SendPacket{
 	uint8_t* pBuf;
@@ -48,8 +57,9 @@ int communicator_connect(Server_e server);
 SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
 
 uint32_t getNoace();
-void sessionInvalidate();
-void sessionSendHeartbeat();
+void communicatorInvalideSession();
+void communicatorSendHeartbeat();
+void communicatorRegisterPlayer();
 int communicator_createSesson();
 uint16_t calcCR(uint32_t nonce);
 void sessionDestroyPacket(SendPacket_t* pPacket);
