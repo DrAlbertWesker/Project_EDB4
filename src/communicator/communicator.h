@@ -56,16 +56,16 @@ typedef struct sessionHeader {
 int communicatorConnect(Server_e server);
 void communicatorInvalidateSession();
 void communicatorSendHeartbeat();
-int  communicatorCreateSesson();
+int communicatorCreateSesson();
 void communicatorDestroyPacket(SendPacket_t* pPacket);
 void communicatorSendApplicationPacket(uint8_t* pPacket, uint32_t size);
 SendPacket_t* communicator_challengeRespond(uint32_t nonce);
 SendPacket_t* communicatorCreateSessionPacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
 
 uint16_t calcCR(uint32_t nonce);
-uint16_t generateCRC (uint8_t* pBuf, uint32_t len);
+uint16_t generateCRC(uint8_t* pBuf, uint32_t len);
 uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand);
-void write_msblsb (uint8_t* pBuf, uint16_t val);
+void write_msblsb(uint8_t* pBuf, uint16_t val);
 void write_msblsb32bit(uint8_t* pBuf, uint32_t val);
 uint16_t read_msblsb(uint8_t* pBuf);
 uint32_t read_msblsb32bit(uint8_t* pBuf);

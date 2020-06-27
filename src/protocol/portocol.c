@@ -93,12 +93,11 @@ SendPacket_t* createPlayerChatPacket(char* message) {
 	write_msblsb(&pBuffer[1], (packetLength - HEADER_LENGTH));
 	write_msblsb(&pBuffer[3], CHAT_MSG);
 	write_msblsb(&pBuffer[5], gTransactionId);
-	memcpy (&pBuffer[7], message, (stringLength));
+	memcpy(&pBuffer[7], message, (stringLength));
 	pMessage->pBuf = &pBuffer[0];
 	pMessage->size = packetLength;
 	return pMessage;
 }
-
 
 SendPacket_t* createPlayerDropFoodPacket(void) {
 	uint8_t PL = 1;
@@ -115,6 +114,5 @@ SendPacket_t* createPlayerDropFoodPacket(void) {
 	pPacket->pBuf = pDropFoodPacket;
 	pPacket->size = (gHeadersize + PL);
 	return pPacket;
-
 }
 
