@@ -10,6 +10,7 @@
 
 #include "../network/network.h"
 
+
 typedef enum {
 	TEST_SERVER,
 	MAIN_SERVER,
@@ -52,22 +53,18 @@ typedef struct sessionHeader {
 
 #pragma pack(pop)
 
-int communicator_connect(Server_e server);
-
-SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
-
-uint32_t getNoace();
-void communicatorInvalideSession();
+int communicatorConnect(Server_e server);
+void communicatorInvalidateSession();
 void communicatorSendHeartbeat();
-void communicatorRegisterPlayer();
-int communicator_createSesson();
-uint16_t calcCR(uint32_t nonce);
-void sessionDestroyPacket(SendPacket_t* pPacket);
-uint16_t generateCRC (uint8_t* pBuf, uint32_t len);
+int  communicatorCreateSesson();
+void communicatorDestroyPacket(SendPacket_t* pPacket);
+void communicatorSendApplicationPacket(uint8_t* pPacket, uint32_t size);
 SendPacket_t* communicator_challengeRespond(uint32_t nonce);
-void sendApplicationPacket(uint8_t* pPacket, uint32_t size);
-uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand);
+SendPacket_t* communicatorCreateSessionPacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac);
 
+uint16_t calcCR(uint32_t nonce);
+uint16_t generateCRC (uint8_t* pBuf, uint32_t len);
+uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand);
 void write_msblsb (uint8_t* pBuf, uint16_t val);
 void write_msblsb32bit(uint8_t* pBuf, uint32_t val);
 uint16_t read_msblsb(uint8_t* pBuf);

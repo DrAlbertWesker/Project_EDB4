@@ -13,16 +13,26 @@ static bool gRight = false;
 static bool gDown = false;
 static bool gLeft = false;
 
+static uint8_t playerAvatar_RFU[128] = { 0 };
+
 int main(int argc, char** argv) {
 	setbuf(stdout, NULL);
 
 	input_service_init(cbInputHandler);
-	communicator_connect(GAME_SERVER);
-	if (communicator_createSesson() != 0) {
+	communicatorConnect(GAME_SERVER);
+	if (communicatorCreateSesson() != 0) {
 		printf("Failed to create session!\n");
 		return -1;
 	}
-	communicatorRegisterPlayer();
+
+	PlayerColor_t* pPlayerColor = malloc(sizeof(PlayerColor_t));
+	pPlayerColor->red = 255;
+	pPlayerColor->green = 255;
+	pPlayerColor->blue = 0;
+	SendPacket_t* pRegistPacket = createPlayerRegistrationPacket(0x80, "NiMa", &playerAvatar_RFU[0] , pPlayerColor);
+	communicatorSendApplicationPacket(pRegistPacket->pBuf, pRegistPacket->size);
+	communicatorDestroyPacket(pRegistPacket);
+
 	uint32_t time_now_s = time(NULL);
 	uint32_t time_heartbeat = time_now_s;
  	while (gRunning) {
@@ -30,8 +40,8 @@ int main(int argc, char** argv) {
 		if ((time_now_s - time_heartbeat) > 10) {
 			communicatorSendHeartbeat();
 			SendPacket_t* pMessage = createPlayerChatPacket("Heartbeat");
-			sendApplicationPacket(pMessage->pBuf, pMessage->size);
-			sessionDestroyPacket(pMessage);
+			communicatorSendApplicationPacket(pMessage->pBuf, pMessage->size);
+			communicatorDestroyPacket(pMessage);
 			time_heartbeat = time_now_s;
 		}
  		Sleep(10);
@@ -44,29 +54,26 @@ static void cbInputHandler(InputKeyMask_t m) {
 	printf("Input event: %d.\r\n", m);
 	if (m == INPUT_KEY_MASK_KEY_ESC) {
 		gRunning = false;
-		Sleep(20);
 	}
 	gUp =  (m & INPUT_KEY_MASK_KEY_UP);
 	gRight = (m & INPUT_KEY_MASK_KEY_RIGHT);
 	gDown = (m & INPUT_KEY_MASK_KEY_DOWN);
 	gLeft = (m & INPUT_KEY_MASK_KEY_LEFT);
 	if (!(((gUp == true) && (gDown == true)) || ((gLeft == true) && (gRight == true)))) {
-		SendPacket_t* pControlPacket = createPlayerControlPacket(gUp, gLeft, gRight, gDown);
-		uint8_t testVal = pControlPacket->pBuf[7];
-		printf("Control Command: %d\n", testVal);
-		sendApplicationPacket(pControlPacket->pBuf, pControlPacket->size);
-		sessionDestroyPacket(pControlPacket);
-		printf("Still moving!!!\n");
+	SendPacket_t* pControlPacket;
+	pControlPacket = createPlayerControlPacket(gUp, gLeft, gRight, gDown);
+	communicatorSendApplicationPacket(pControlPacket->pBuf, pControlPacket->size);
+	Sleep(500);
+	communicatorDestroyPacket(pControlPacket);
 
-		Sleep(200);
 	}
 
-	if (m == INPUT_KEY_MASK_KEY_DOWN + INPUT_KEY_MASK_KEY_SPACE) {
-		sessionInvalidate();
+	if (m == INPUT_KEY_MASK_KEY_SPACE + INPUT_KEY_MASK_KEY_ESC) {
+		communicatorInvalidateSession();
 	}
 	if (m == INPUT_KEY_MASK_KEY_SPACE) {
 		SendPacket_t* pDropFood = createPlayerDropFoodPacket();
-		sendApplicationPacket(pDropFood->pBuf, pDropFood->size);
+		communicatorSendApplicationPacket(pDropFood->pBuf, pDropFood->size);
 	}
 
 }

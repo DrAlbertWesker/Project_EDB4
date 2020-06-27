@@ -20,14 +20,13 @@
 #define SESSION_ESTABLISHED_						0x10
 #define SESSION_HEADER_LENGTH						9
 
-
 static void cbNetworkReceive(uint8_t* pBuffer, uint32_t len);
 static uint16_t gSessionId;
 uint16_t gSequenceNumber_tx;
 uint16_t gSequenceNumber_rx;
 uint16_t gChallengeResponse;
 
-int communicator_connect(Server_e server) {
+int communicatorConnect(Server_e server) {
 
 	if (!network_init(cbNetworkReceive)) {
 		return -1;
@@ -54,10 +53,10 @@ int communicator_connect(Server_e server) {
 	return 0;
 }
 
-int communicator_createSesson() {
-	SendPacket_t* pCreateSession = sessionCreatePacket(0, CMD_SESSION_REQUEST, 0, 0, 0, 0);
+int communicatorCreateSesson() {
+	SendPacket_t* pCreateSession = communicatorCreateSessionPacket(0, CMD_SESSION_REQUEST, 0, 0, 0, 0);
 	network_send(pCreateSession->pBuf, pCreateSession->size);
-	sessionDestroyPacket(pCreateSession);
+	communicatorDestroyPacket(pCreateSession);
 	while (gSessionId == 0) {
 		Sleep(10);
 	}
@@ -66,22 +65,12 @@ int communicator_createSesson() {
 
 SendPacket_t* communicator_challengeRespond(uint32_t nonce) {
 	gChallengeResponse = calcCR(nonce);
-	SendPacket_t* pPacket = sessionCreatePacket(0, CMD_CHALLENGE_RESPOND, 4, 0, 0, 0);
+	SendPacket_t* pPacket = communicatorCreateSessionPacket(0, CMD_CHALLENGE_RESPOND, 4, 0, 0, 0);
 	write_msblsb(&pPacket->pBuf[9], gChallengeResponse);
 	return pPacket;
 }
 
-void communicatorRegisterPlayer() {
-	PlayerColor_t* pPlayerColor = malloc(sizeof(PlayerColor_t));
-	pPlayerColor->red = 255;
-	pPlayerColor->green = 255;
-	pPlayerColor->blue = 0;
-	SendPacket_t* pPacket = createPlayerRegistrationPacket(0x80, "NiMa", pPlayerColor);
-	sendApplicationPacket(pPacket->pBuf, pPacket->size);
-	sessionDestroyPacket(pPacket);
-}
-
-void sendApplicationPacket(uint8_t* pPacket, uint32_t size) {
+void communicatorSendApplicationPacket(uint8_t* pPacket, uint32_t size) {
 	gSequenceNumber_tx++;
 	SendPacket_t* pAppPacket = malloc(sizeof(SendPacket_t));
 	if (pAppPacket == NULL) {
@@ -90,7 +79,7 @@ void sendApplicationPacket(uint8_t* pPacket, uint32_t size) {
 	pAppPacket->pBuf = pPacket;
 	pAppPacket->size = size;
 	uint16_t hmac = calcHashMac(pAppPacket->pBuf, pAppPacket->size, CMD_APP_MSG);
-	pAppPacket = sessionCreatePacket(0, CMD_APP_MSG, size, gSessionId, gSequenceNumber_tx, hmac);
+	pAppPacket = communicatorCreateSessionPacket(0, CMD_APP_MSG, size, gSessionId, gSequenceNumber_tx, hmac);
 
 	memcpy(&pAppPacket->pBuf[7], pPacket, size);
 	network_send(pAppPacket->pBuf, pAppPacket->size);
@@ -106,7 +95,7 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
 		SendPacket_t* pPacket = communicator_challengeRespond(nonce);
 		network_send(pPacket->pBuf, pPacket->size);
-		sessionDestroyPacket(pPacket);
+		communicatorDestroyPacket(pPacket);
 	}
 
 	if (pBuffer[0] == SESSION_ESTABLISHED_) {
@@ -123,23 +112,23 @@ void communicatorSendHeartbeat() {
 	}
 	pHeartBeat->pBuf = malloc(0);
 	uint16_t hmac = calcHashMac(pHeartBeat->pBuf, 0, CMD_HEARTBEAT);
-	pHeartBeat = sessionCreatePacket(0, CMD_HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
+	pHeartBeat = communicatorCreateSessionPacket(0, CMD_HEARTBEAT, 0, gSessionId, gSequenceNumber_tx, hmac);
 	network_send(pHeartBeat->pBuf, pHeartBeat->size);
-	sessionDestroyPacket(pHeartBeat);
+	communicatorDestroyPacket(pHeartBeat);
 }
 
-void sessionInvalidate() {
+void communicatorInvalidateSession() {
 	gSequenceNumber_tx++;
 	SendPacket_t* pKillSession = malloc(sizeof(SendPacket_t));
 	if (pKillSession == NULL) {
 		printf("No memory available!\n");
 	}
 	uint16_t hmac = calcHashMac(pKillSession->pBuf, 0, CMD_SESSION_INVALIDATE);
-	pKillSession = sessionCreatePacket(0, CMD_SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
+	pKillSession = communicatorCreateSessionPacket(0, CMD_SESSION_INVALIDATE, 0, gSessionId, gSequenceNumber_tx, hmac);
 	network_send(pKillSession->pBuf, pKillSession->size);
 }
 
-SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac) {
+SendPacket_t* communicatorCreateSessionPacket(uint8_t version, uint8_t commandType, uint16_t length, uint16_t sessionId, uint16_t seqNumber, uint16_t hmac) {
 	SendPacket_t* pPacket = malloc(sizeof(SendPacket_t));
 	if (pPacket == NULL) {
 		return NULL;
@@ -148,7 +137,6 @@ SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t
 	if (pBuffer == NULL) {
 		return NULL;
 	}
-	SessionHeader_t* pHeader = (SessionHeader_t*) pBuffer;
 	pBuffer[0] = 0;
 	write_msblsb(&pBuffer[1], length);
 	write_msblsb(&pBuffer[3], sessionId);
@@ -186,9 +174,10 @@ SendPacket_t* sessionCreatePacket(uint8_t version, uint8_t commandType, uint16_t
 		return pPacket;
 		break;
 	}
+	return 0;
 }
 
-void sessionDestroyPacket(SendPacket_t* pPacket) {
+void communicatorDestroyPacket(SendPacket_t* pPacket) {
 	free(pPacket->pBuf);
 	free(pPacket);
 }
@@ -209,7 +198,7 @@ uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand) {
 	uint8_t hashSize = 17;
 	uint8_t* pHash = malloc(hashSize + len);
 	if (pHash == NULL) {
-		return NULL;
+		return 0;
 	}
 	uint8_t hash[17] = { 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; //(CR | S | H )
 	write_msblsb(&hash[0], gChallengeResponse);
@@ -241,7 +230,6 @@ uint16_t calcHashMac(uint8_t* pBuf, uint32_t len, uint8_t sessionCommand) {
 }
 
 uint16_t generateCRC (uint8_t* pBuf, uint32_t len) {
-
 	uint16_t crc = 0xFFFF;
 	for (int i = 0; i < len; i++) {
 		crc = crc ^ pBuf[i];
@@ -254,7 +242,6 @@ uint16_t generateCRC (uint8_t* pBuf, uint32_t len) {
 			}
 		}
 	}
-
 	return crc;
 }
 

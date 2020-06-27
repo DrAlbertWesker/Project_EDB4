@@ -39,18 +39,12 @@ typedef struct {
 }PacketHeader_t;
 
 typedef struct {
-	uint8_t type;
-	uint16_t length;
-	uint8_t* pData;
-}tlv_t;
-
-typedef struct {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
 } PlayerColor_t;
 
-SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername, PlayerColor_t* color);
+SendPacket_t* createPlayerRegistrationPacket(uint16_t transactionId, char* playername, uint8_t* pAvatar , PlayerColor_t* color);
 SendPacket_t* createPlayerControlPacket(bool up, bool right, bool down, bool left);
 SendPacket_t* createPlayerChatPacket(char* message);
 SendPacket_t* createPlayerDropFoodPacket(void);
