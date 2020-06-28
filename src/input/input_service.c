@@ -26,6 +26,7 @@ DWORD WINAPI inputHandleThread(void* data) {
 		currMask |= (GetAsyncKeyState(VK_RIGHT)) ? INPUT_KEY_MASK_KEY_RIGHT : 0;
 		currMask |= (GetAsyncKeyState(VK_ESCAPE)) ? INPUT_KEY_MASK_KEY_ESC : 0;
 		currMask |= (GetAsyncKeyState(VK_SPACE)) ? INPUT_KEY_MASK_KEY_SPACE : 0;
+		currMask |= (GetAsyncKeyState(VK_INSERT)) ? INPUT_KEY_MASK_KEY_INSERT : 0;
 
 		if (currMask != lastMask && gEventHandler) {
 			gEventHandler(currMask);

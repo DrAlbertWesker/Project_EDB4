@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 	pPlayerColor->red = 255;
 	pPlayerColor->green = 255;
 	pPlayerColor->blue = 0;
-	SendPacket_t* pRegistPacket = createPlayerRegistrationPacket(0x80, "NiMa", &playerAvatar_RFU[0], pPlayerColor);
+	SendPacket_t* pRegistPacket = createPlayerRegistrationPacket(0xF00D, "NiMa", &playerAvatar_RFU[0], pPlayerColor);
 	communicatorSendApplicationPacket(pRegistPacket->pBuf, pRegistPacket->size);
 	communicatorDestroyPacket(pRegistPacket);
 	free(pPlayerColor);
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
 				communicatorDestroyPacket(pControlPacket);
 			}
    		}
-		Sleep(100);	//14Hz Serverrefreshrate
+		Sleep(100);
 	}
 	printf("Exiting...");
 	return 0;
@@ -75,5 +75,13 @@ static void cbInputHandler(InputKeyMask_t m) {
 		SendPacket_t* pDropFood = createPlayerDropFoodPacket();
 		communicatorSendApplicationPacket(pDropFood->pBuf, pDropFood->size);
 	}
+	if (m == INPUT_KEY_MASK_KEY_INSERT) {
+		char chatMessage[100];
+		gets(chatMessage);
+		SendPacket_t* pMessage = createPlayerChatPacket(chatMessage);
+		communicatorSendApplicationPacket(pMessage->pBuf, pMessage->size);
+		communicatorDestroyPacket(pMessage);
+	}
+
 	Sleep(100);
 }

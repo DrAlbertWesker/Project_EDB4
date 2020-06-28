@@ -17,6 +17,7 @@ typedef uint32_t InputKeyMask_t;
 #define INPUT_KEY_MASK_KEY_RIGHT			(0b00001000)
 #define INPUT_KEY_MASK_KEY_ESC				(0b00010000)
 #define INPUT_KEY_MASK_KEY_SPACE			(0b00100000)
+#define INPUT_KEY_MASK_KEY_INSERT			(0b01000000)
 
 typedef void(*InputEventHandler)(InputKeyMask_t);
 
