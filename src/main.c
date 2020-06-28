@@ -16,6 +16,28 @@ static bool gLeft = false;
 static uint8_t playerAvatar_RFU[128] = { 0 };
 
 int main(int argc, char** argv) {
+
+	printf("##############################################################################################################\n");
+	printf("##############################################################################################################\n");
+	printf("####                                                                                                      ####\n");
+	printf("####   ..####....####...##..##..######..#####.............##.....####............####...######..##...##   ####\n");
+	printf("####   .##..##..##..##..##..##....##....##..##...........###....##..##..........##........##....###.###   ####\n");
+	printf("####   .##......##..##..##..##....##....##..##..######....##.....####............####.....##....##.#.##   ####\n");
+	printf("####   .##..##..##..##...####.....##....##..##............##......##................##....##....##...##   ####\n");
+	printf("####   ..####....####.....##....######..#####...........######...##..............####...######..##...##   ####\n");
+	printf("####   ................................................................................................   ####\n");
+	printf("####                                                                                                      ####\n");
+	printf("##############################################################################################################\n");
+	printf("##############################################################################################################\n");
+
+	printf("\nControlls: \n");
+	printf("Arrow-Keys:                Movement.\n");
+	printf("Space:                     Drop food\n");
+	printf("Insert:                    Chat-Message\n");
+	printf("Space + ESC:               Disconnect from server\n");
+	printf("ESC:                       Exit game\n\n");
+	Sleep(1000);
+
 	setbuf(stdout, NULL);
 	input_service_init(cbInputHandler);
 	communicatorConnect(GAME_SERVER);
@@ -23,7 +45,7 @@ int main(int argc, char** argv) {
 		printf("Failed to create session!\n");
 		return -1;
 	}
-
+	Sleep(1000);
 	PlayerColor_t* pPlayerColor = malloc(sizeof(PlayerColor_t));
 	pPlayerColor->red = 255;
 	pPlayerColor->green = 255;
@@ -40,9 +62,6 @@ int main(int argc, char** argv) {
 		time_now_s = time(NULL);
 		if ((time_now_s - time_heartbeat) > 10) {
 			communicatorSendHeartbeat();
-			SendPacket_t* pMessage = createPlayerChatPacket("Hier könnte Ihre Werbung stehen");
-			communicatorSendApplicationPacket(pMessage->pBuf, pMessage->size);
-			communicatorDestroyPacket(pMessage);
 			time_heartbeat = time_now_s;
 		}
 		if (!(((gUp == true) && (gDown == true)) || ((gLeft == true) && (gRight == true)))) {
@@ -60,7 +79,6 @@ int main(int argc, char** argv) {
 }
 
 static void cbInputHandler(InputKeyMask_t m) {
-	printf("Input event: %d.\r\n", m);
 	if (m == INPUT_KEY_MASK_KEY_ESC) {
 		gRunning = false;
 	}
@@ -76,6 +94,7 @@ static void cbInputHandler(InputKeyMask_t m) {
 		communicatorSendApplicationPacket(pDropFood->pBuf, pDropFood->size);
 	}
 	if (m == INPUT_KEY_MASK_KEY_INSERT) {
+		printf("Enter a chat message and hit ENTER: ");
 		char chatMessage[100];
 		gets(chatMessage);
 		SendPacket_t* pMessage = createPlayerChatPacket(chatMessage);

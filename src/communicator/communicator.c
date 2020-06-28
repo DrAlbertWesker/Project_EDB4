@@ -42,6 +42,7 @@ int communicatorConnect(Server_e server) {
 		break;
 
 	case GAME_SERVER:
+		printf("Connecting to Server: 52.57.105.0\n");
 		if (!network_connect(GAME_SERVER_IP_ADDRESS	, GAME_SERVER_PORT)) {
 			return -4;
 		}
@@ -53,10 +54,6 @@ int communicatorConnect(Server_e server) {
 }
 
 void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
-	for (int i = 0; i < len; i++) {
-		printf("%02X ", pBuffer[i]);
-	}
-	printf("\n");
 	if (pBuffer[0] == SERVER_CHALLENGE) {
 		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
 		SendPacket_t* pPacket = communicator_challengeRespond(nonce);
@@ -65,7 +62,7 @@ void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
 	}
 	if (pBuffer[0] == SESSION_ESTABLISHED_) {
 		gSessionId = (pBuffer[3] << 8) | pBuffer[4];
-		printf("Session created --> SessionId: %d\n\n", gSessionId);
+		printf("Session established! SessionId: %d\n\n", gSessionId);
 	}
 }
 
@@ -186,7 +183,7 @@ uint16_t calcCR(uint32_t nonce) {
 	write_msblsb(&hash[0], hash1);
 	uint16_t hash2 = generateCRC(hash, 2);
 	gChallengeResponse = hash2;
-	printf("CR: %d\n", hash2);
+	//printf("CR: %d\n", hash2);
 	return gChallengeResponse;
 }
 
