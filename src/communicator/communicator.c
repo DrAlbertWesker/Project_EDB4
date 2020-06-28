@@ -52,6 +52,23 @@ int communicatorConnect(Server_e server) {
 	return 0;
 }
 
+void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
+	for (int i = 0; i < len; i++) {
+		printf("%02X ", pBuffer[i]);
+	}
+	printf("\n");
+	if (pBuffer[0] == SERVER_CHALLENGE) {
+		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
+		SendPacket_t* pPacket = communicator_challengeRespond(nonce);
+		network_send(pPacket->pBuf, pPacket->size);
+		communicatorDestroyPacket(pPacket);
+	}
+	if (pBuffer[0] == SESSION_ESTABLISHED_) {
+		gSessionId = (pBuffer[3] << 8) | pBuffer[4];
+		printf("Session created --> SessionId: %d\n\n", gSessionId);
+	}
+}
+
 int communicatorCreateSesson() {
 	SendPacket_t* pCreateSession = communicatorCreateSessionPacket(0, CMD_SESSION_REQUEST, 0, 0, 0, 0);
 	network_send(pCreateSession->pBuf, pCreateSession->size);
@@ -83,22 +100,6 @@ void communicatorSendApplicationPacket(uint8_t* pPacket, uint32_t size) {
 	network_send(pAppPacket->pBuf, pAppPacket->size);
 }
 
-void cbNetworkReceive(uint8_t* pBuffer, uint32_t len) {
-	for (int i = 0; i < len; i++) {
-		printf("%02X ", pBuffer[i]);
-	}
-	printf("\n");
-	if (pBuffer[0] == SERVER_CHALLENGE) {
-		uint32_t nonce = read_msblsb32bit(&pBuffer[7]);
-		SendPacket_t* pPacket = communicator_challengeRespond(nonce);
-		network_send(pPacket->pBuf, pPacket->size);
-		communicatorDestroyPacket(pPacket);
-	}
-	if (pBuffer[0] == SESSION_ESTABLISHED_) {
-		gSessionId = (pBuffer[3] << 8) | pBuffer[4];
-		printf("Session created --> SessionId: %d\n\n", gSessionId);
-	}
-}
 
 void communicatorSendHeartbeat() {
 	gSequenceNumber_tx++;

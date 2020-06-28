@@ -46,12 +46,14 @@ int main(int argc, char** argv) {
 			time_heartbeat = time_now_s;
 		}
 		if (!(((gUp == true) && (gDown == true)) || ((gLeft == true) && (gRight == true)))) {
-			SendPacket_t* pControlPacket;
-			pControlPacket = createPlayerControlPacket(gUp, gLeft, gRight, gDown);
-			communicatorSendApplicationPacket(pControlPacket->pBuf, pControlPacket->size);
-			communicatorDestroyPacket(pControlPacket);
+			if (!(gUp == false && gDown == false && gLeft == false && gRight == false)) {
+				SendPacket_t* pControlPacket;
+				pControlPacket = createPlayerControlPacket(gUp, gLeft, gRight, gDown);
+				communicatorSendApplicationPacket(pControlPacket->pBuf, pControlPacket->size);
+				communicatorDestroyPacket(pControlPacket);
+			}
    		}
-		Sleep(40);	//14Hz Serverrefreshrate
+		Sleep(100);	//14Hz Serverrefreshrate
 	}
 	printf("Exiting...");
 	return 0;
@@ -73,4 +75,5 @@ static void cbInputHandler(InputKeyMask_t m) {
 		SendPacket_t* pDropFood = createPlayerDropFoodPacket();
 		communicatorSendApplicationPacket(pDropFood->pBuf, pDropFood->size);
 	}
+	Sleep(100);
 }
